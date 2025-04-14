@@ -1,0 +1,730 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Phân tích sụp đổ của token Mantra (OM)</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/inter-ui@3.19.3/inter.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@2.1.0/dist/chartjs-plugin-annotation.min.js"></script>
+    <style>
+        :root {
+            --bg-color: #ffffff;
+            --text-color: #333333;
+            --secondary-bg: #f8f9fa;
+            --highlight-color: #3182ce;
+            --border-color: #e2e8f0;
+            --chart-grid: #e2e8f0;
+        }
+        
+        .dark-mode {
+            --bg-color: #1a202c;
+            --text-color: #e2e8f0;
+            --secondary-bg: #2d3748;
+            --highlight-color: #63b3ed;
+            --border-color: #4a5568;
+            --chart-grid: #4a5568;
+        }
+        
+        body {
+            font-family: 'Inter', 'Roboto', sans-serif;
+            line-height: 1.7;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            transition: background-color 0.3s, color 0.3s;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+        
+        #navbar {
+            background-color: var(--bg-color);
+            border-bottom: 1px solid var(--border-color);
+            transition: background-color 0.3s, box-shadow 0.3s;
+        }
+        
+        .navbar-shadow {
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+        
+        .toc-link {
+            display: block;
+            padding: 5px 10px;
+            margin: 5px 0;
+            border-left: 2px solid transparent;
+            transition: all 0.3s ease;
+        }
+        
+        .toc-link.active {
+            border-left: 2px solid var(--highlight-color);
+            color: var(--highlight-color);
+            background-color: var(--secondary-bg);
+        }
+        
+        .toc-link:hover {
+            border-left: 2px solid var(--highlight-color);
+            color: var(--highlight-color);
+        }
+        
+        .toc-container {
+            background-color: var(--secondary-bg);
+            border-radius: 8px;
+            transition: background-color 0.3s;
+        }
+        
+        .content-section {
+            scroll-margin-top: 80px;
+        }
+        
+        .chart-container {
+            position: relative;
+            height: 400px;
+            width: 100%;
+            margin: 20px 0;
+        }
+        
+        .tooltip {
+            position: relative;
+            display: inline-block;
+        }
+        
+        .tooltip .tooltiptext {
+            visibility: hidden;
+            width: 200px;
+            background-color: var(--secondary-bg);
+            color: var(--text-color);
+            text-align: center;
+            border-radius: 6px;
+            padding: 5px;
+            position: absolute;
+            z-index: 1;
+            bottom: 125%;
+            left: 50%;
+            margin-left: -100px;
+            opacity: 0;
+            transition: opacity 0.3s;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+            border: 1px solid var(--border-color);
+        }
+        
+        .tooltip:hover .tooltiptext {
+            visibility: visible;
+            opacity: 1;
+        }
+        
+        .back-to-top {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            background-color: var(--secondary-bg);
+            color: var(--text-color);
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            opacity: 0;
+            visibility: hidden;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            z-index: 1000;
+        }
+        
+        .back-to-top.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+        
+        .back-to-top:hover {
+            background-color: var(--highlight-color);
+            color: white;
+        }
+        
+        /* Mobile responsiveness */
+        @media (max-width: 768px) {
+            .content-container {
+                flex-direction: column;
+            }
+            
+            .main-content {
+                width: 100%;
+                padding-right: 0;
+            }
+            
+            .toc-sidebar {
+                width: 100%;
+                margin-top: 20px;
+                position: static;
+                height: auto;
+            }
+            
+            .chart-container {
+                height: 300px;
+            }
+        }
+        
+        .toggle-container {
+            width: 60px;
+            height: 30px;
+            border-radius: 15px;
+            background-color: var(--secondary-bg);
+            display: flex;
+            align-items: center;
+            position: relative;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        
+        .toggle-circle {
+            width: 24px;
+            height: 24px;
+            background-color: var(--highlight-color);
+            border-radius: 50%;
+            position: absolute;
+            left: 3px;
+            transition: transform 0.3s ease;
+        }
+        
+        .toggle-container.dark .toggle-circle {
+            transform: translateX(30px);
+        }
+        
+        .toggle-icon {
+            position: absolute;
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            padding: 0 7px;
+            box-sizing: border-box;
+            color: var(--text-color);
+        }
+
+        .data-point {
+            cursor: pointer;
+            transition: r 0.3s ease;
+        }
+        
+        .data-point:hover {
+            r: 8;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            font-size: 16px;
+        }
+        
+        table, th, td {
+            border: 1px solid var(--border-color);
+        }
+        
+        th, td {
+            padding: 12px;
+            text-align: left;
+        }
+        
+        th {
+            background-color: var(--secondary-bg);
+        }
+        
+        tr:nth-child(even) {
+            background-color: var(--secondary-bg);
+        }
+        
+        tr:hover {
+            background-color: rgba(var(--highlight-color-rgb), 0.1);
+        }
+        
+        blockquote {
+            border-left: 4px solid var(--highlight-color);
+            padding-left: 20px;
+            margin: 20px 0;
+            font-style: italic;
+        }
+        
+        .icon-container {
+            display: flex;
+            justify-content: center;
+            margin: 30px 0;
+        }
+        
+        .icon-box {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 0 15px;
+            text-align: center;
+            width: 150px;
+        }
+        
+        .icon {
+            font-size: 48px;
+            color: var(--highlight-color);
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <nav id="navbar" class="fixed w-full z-10 top-0">
+        <div class="container mx-auto px-4 py-4 flex justify-between items-center">
+            <h1 class="text-xl font-bold">Phân tích sụp đổ của token Mantra (OM)</h1>
+            <div class="toggle-container" id="darkModeToggle">
+                <div class="toggle-icon">
+                    <i class="fas fa-sun"></i>
+                    <i class="fas fa-moon"></i>
+                </div>
+                <div class="toggle-circle"></div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container pt-24 pb-12">
+        <div class="content-container flex flex-col md:flex-row">
+            <div class="main-content w-full md:w-3/4 pr-0 md:pr-8">
+                <section id="intro" class="content-section mb-10">
+                    <h2 class="text-2xl font-bold mb-4">Giới thiệu</h2>
+                    <p>Token Mantra (OM) đã trải qua một sự sụp đổ ngoạn mục vào ngày 13/4/2025, khi giá của nó giảm mạnh từ khoảng $6.3 xuống dưới $0.5 chỉ trong vòng 24 giờ, xóa sổ hơn 90% giá trị vốn hóa thị trường. Đây là một sự sụp đổ đáng chú ý, đặc biệt khi xét đến việc token này đã từng đạt mức giá cao nhất là $9.03 vào tháng 2/2025.</p>
+                </section>
+
+                <section id="price-history" class="content-section mb-10">
+                    <h2 class="text-2xl font-bold mb-4">Lịch sử giá của token Mantra (OM)</h2>
+                    <p>Để hiểu rõ hơn về sự sụp đổ, chúng ta cần nhìn lại lịch sử phát triển giá của token OM từ giai đoạn đầu cho đến thời điểm sụp đổ:</p>
+                    
+                    <div class="chart-container">
+                        <canvas id="priceChart"></canvas>
+                    </div>
+                    
+                    <div class="mt-6">
+                        <p>Từ biểu đồ trên, chúng ta có thể thấy rõ:</p>
+                        <ul class="list-disc pl-6 mt-2">
+                            <li class="tooltip mb-2">
+                                <strong>Năm 2023</strong>: Token OM có giá rất thấp, dao động quanh mức $0.02-0.06.
+                                <span class="tooltiptext">Giai đoạn này token chưa được nhiều người chú ý và có vốn hóa thấp</span>
+                            </li>
+                            <li class="tooltip mb-2">
+                                <strong>Đầu năm 2024</strong>: Giá bắt đầu tăng mạnh, từ khoảng $0.05 lên đến hơn $1 vào tháng 4/2024.
+                                <span class="tooltiptext">Tăng trưởng hơn 20 lần trong vòng 4 tháng</span>
+                            </li>
+                            <li class="tooltip mb-2">
+                                <strong>Cuối năm 2024</strong>: Tăng trưởng vọt lên với giá đạt khoảng $4.6 vào tháng 12/2024.
+                                <span class="tooltiptext">Giai đoạn này đánh dấu sự chú ý mạnh mẽ từ cộng đồng crypto</span>
+                            </li>
+                            <li class="tooltip mb-2">
+                                <strong>Đầu năm 2025</strong>: Đạt đỉnh cao nhất là $9.03 vào tháng 2/2025.
+                                <span class="tooltiptext">Mức tăng gần 900 lần so với giá thấp nhất</span>
+                            </li>
+                            <li class="tooltip mb-2">
+                                <strong>Tháng 4/2025</strong>: Sụp đổ đột ngột từ $6.3 xuống dưới $0.5 vào ngày 13/4/2025.
+                                <span class="tooltiptext">Mất 90% giá trị chỉ trong 24 giờ</span>
+                            </li>
+                        </ul>
+                    </div>
+                </section>
+
+                <section id="collapse-causes" class="content-section mb-10">
+                    <h2 class="text-2xl font-bold mb-4">Nguyên nhân chính dẫn đến sự sụp đổ</h2>
+                    <p>Từ các nguồn thông tin đã thu thập, có thể xác định một số nguyên nhân chính dẫn đến sự sụp đổ của token Mantra:</p>
+                    
+                    <div class="icon-container">
+                        <div class="icon-box">
+                            <i class="fa-solid fa-money-bill-trend-up icon"></i>
+                            <span>Thanh lý cưỡng bức</span>
+                        </div>
+                        <div class="icon-box">
+                            <i class="fa-solid fa-wallet icon"></i>
+                            <span>Hoạt động đáng ngờ</span>
+                        </div>
+                        <div class="icon-box">
+                            <i class="fa-solid fa-chart-line icon"></i>
+                            <span>Thao túng thị trường</span>
+                        </div>
+                        <div class="icon-box">
+                            <i class="fa-solid fa-burst icon"></i>
+                            <span>Bong bóng</span>
+                        </div>
+                    </div>
+
+                    <h3 id="liquidations" class="text-xl font-semibold mt-6 mb-3">1. Thanh lý cưỡng bức từ các sàn giao dịch tập trung (CEX)</h3>
+                    <p>Đồng sáng lập của Mantra, JP Mullin, cho rằng sự sụp đổ là do các sàn giao dịch tập trung thực hiện việc thanh lý cưỡng bức (forced liquidations) đối với các vị thế của người giao dịch. Cụ thể:</p>
+                    <ul class="list-disc pl-6 mt-2">
+                        <li class="mb-2">Hợp đồng tương lai liên quan đến OM đã ghi nhận hơn $50 triệu bị thanh lý ở phía mua (long side).</li>
+                        <li class="mb-2">Lượng vốn đang giao dịch (open interest) đã giảm từ $345 triệu xuống còn khoảng $130 triệu, cho thấy sự rút lui nhanh chóng của các nhà đầu tư.</li>
+                        <li class="mb-2">Việc thanh lý xảy ra vào thời điểm thanh khoản thấp, khiến tác động lên giá trở nên trầm trọng hơn.</li>
+                    </ul>
+
+                    <h3 id="suspicious-activities" class="text-xl font-semibold mt-6 mb-3">2. Hoạt động đáng ngờ từ các ví liên quan đến đội ngũ Mantra</h3>
+                    <p>Nhiều báo cáo chỉ ra rằng có hoạt động đáng nghi ngờ từ các ví được cho là liên quan đến đội ngũ Mantra trước khi sự sụp đổ xảy ra:</p>
+                    <ul class="list-disc pl-6 mt-2">
+                        <li class="mb-2">Một ví được cho là liên quan đến đội ngũ Mantra đã gửi 3,9 triệu token OM vào sàn giao dịch OKX ngay trước khi sự sụp đổ xảy ra.</li>
+                        <li class="mb-2">Dữ liệu on-chain cho thấy 17 ví đã chuyển tổng cộng 43,6 triệu token OM (trị giá khoảng $227 triệu) vào các sàn giao dịch trước khi giá sụp đổ.</li>
+                    </ul>
+
+                    <div class="bg-gray-100 dark:bg-gray-800 p-4 rounded-lg my-4">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Hoạt động</th>
+                                    <th>Số lượng token</th>
+                                    <th>Giá trị ước tính</th>
+                                    <th>Thời điểm</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>Chuyển token vào OKX</td>
+                                    <td>3.9 triệu OM</td>
+                                    <td>~$24.57 triệu</td>
+                                    <td>Trước sụp đổ</td>
+                                </tr>
+                                <tr>
+                                    <td>Tổng chuyển vào sàn</td>
+                                    <td>43.6 triệu OM</td>
+                                    <td>~$227 triệu</td>
+                                    <td>Trước sụp đổ</td>
+                                </tr>
+                                <tr>
+                                    <td>Liquidation</td>
+                                    <td>N/A</td>
+                                    <td>~$50 triệu</td>
+                                    <td>Trong sự sụp đổ</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <h3 id="market-manipulation" class="text-xl font-semibold mt-6 mb-3">3. Cáo buộc về thao túng thị trường và rug pull</h3>
+                    <p>Nhiều nhà phân tích và thành viên cộng đồng đã đưa ra các cáo buộc nghiêm trọng:</p>
+                    <ul class="list-disc pl-6 mt-2">
+                        <li class="mb-2">Đội ngũ Mantra bị cáo buộc kiểm soát tới 90% tổng cung token, tạo điều kiện cho việc thao túng thị trường.</li>
+                        <li class="mb-2">Có nghi ngờ rằng đội ngũ đã tham gia vào các giao dịch OTC (Over-The-Counter) với mức chiết khấu lớn (lên đến 50%) trước khi sự sụp đổ xảy ra.</li>
+                        <li class="mb-2">Nhiều người cho rằng đây là một rug pull có chủ đích, khi đội ngũ phát triển có thể đã bán ra một lượng lớn token sau khi đẩy giá lên cao.</li>
+                    </ul>
+
+                    <blockquote>
+                        "Đó là một vụ bê bối lớn đối với toàn bộ ngành công nghiệp tiền điện tử. Tất cả dữ liệu mở khóa và gửi tiền trên chuỗi đều công khai, dữ liệu tài sản thế chấp và thanh lý của tất cả các sàn giao dịch lớn có thể được điều tra." - Star Xu, người sáng lập OKX
+                    </blockquote>
+
+                    <h3 id="market-psychology" class="text-xl font-semibold mt-6 mb-3">4. Yếu tố "bong bóng" và tâm lý thị trường</h3>
+                    <p>Token OM đã tăng trưởng quá nhanh trong thời gian ngắn, từ khoảng $0.01 lên đến $9, điều này tạo ra dấu hiệu của một "bong bóng" không bền vững:</p>
+                    <ul class="list-disc pl-6 mt-2">
+                        <li class="mb-2">Trong năm 2023, giá token OM chỉ ở mức rất thấp (dưới $0.06)</li>
+                        <li class="mb-2">Đến tháng 2/2025, giá tăng lên mức cao nhất là $9.03, tương đương mức tăng gần 900 lần so với mức thấp nhất.</li>
+                        <li class="mb-2">Sự tăng trưởng nhanh chóng này không dựa trên các yếu tố cơ bản vững chắc, dẫn đến việc hình thành bong bóng và sau đó là sự sụp đổ.</li>
+                    </ul>
+                </section>
+
+                <section id="reactions" class="content-section mb-10">
+                    <h2 class="text-2xl font-bold mb-4">Phản ứng từ các bên liên quan</h2>
+
+                    <h3 id="team-response" class="text-xl font-semibold mt-6 mb-3">Phản ứng của đội ngũ Mantra</h3>
+                    <p>Đội ngũ Mantra đã nhanh chóng phản hồi trước sự sụp đổ:</p>
+                    <ul class="list-disc pl-6 mt-2">
+                        <li class="mb-2">Họ phủ nhận việc bán tháo token và đổ lỗi cho việc "thanh lý bất cẩn" từ các sàn giao dịch tập trung.</li>
+                        <li class="mb-2">JP Mullin, đồng sáng lập Mantra, tuyên bố rằng "thời điểm và độ sâu của sự sụp đổ cho thấy một sự đóng vị thế tài khoản rất đột ngột đã được thực hiện mà không có cảnh báo hay thông báo đầy đủ".</li>
+                        <li class="mb-2">Đội ngũ cũng cam kết sẽ tổ chức một cuộc thảo luận cộng đồng để giải quyết sự cố và cung cấp thêm chi tiết.</li>
+                    </ul>
+
+                    <h3 id="exchange-response" class="text-xl font-semibold mt-6 mb-3">Phản ứng từ các sàn giao dịch</h3>
+                    <p>Các sàn giao dịch lớn cũng đã có phản ứng:</p>
+                    <ul class="list-disc pl-6 mt-2">
+                        <li class="mb-2">Star Xu, người sáng lập OKX, mô tả sự việc là một "vụ bê bối lớn đối với toàn bộ ngành công nghiệp tiền điện tử" và cam kết sẽ điều tra và công bố báo cáo đầy đủ.</li>
+                        <li class="mb-2">Binance cho biết họ đã áp dụng các biện pháp kiểm soát rủi ro từ sớm, bao gồm việc giảm đòn bẩy trên các cặp giao dịch liên quan đến OM.</li>
+                    </ul>
+                </section>
+
+                <section id="conclusion" class="content-section mb-10">
+                    <h2 class="text-2xl font-bold mb-4">Kết luận</h2>
+                    <p>Sự sụp đổ của token Mantra (OM) từ $8-9 xuống còn $0.5 là kết quả của nhiều yếu tố kết hợp lại, bao gồm:</p>
+                    <ol class="list-decimal pl-6 mt-2">
+                        <li class="mb-2">Các hoạt động thanh lý cưỡng bức từ các sàn giao dịch tập trung</li>
+                        <li class="mb-2">Hoạt động đáng ngờ từ các ví được cho là liên quan đến đội ngũ Mantra</li>
+                        <li class="mb-2">Cáo buộc về thao túng thị trường và rug pull</li>
+                        <li class="mb-2">Tâm lý thị trường và yếu tố bong bóng khi token tăng giá quá nhanh</li>
+                    </ol>
+                    <p class="mt-4">Sự kiện này là một lời cảnh báo quan trọng cho các nhà đầu tư tiền điện tử về rủi ro của các dự án có cấu trúc nắm giữ token tập trung và sự thiếu minh bạch trong quản lý. Nó cũng cho thấy tầm quan trọng của việc xem xét cẩn thận các dự án tiền điện tử trước khi đầu tư, đặc biệt là những dự án có sự tăng trưởng giá trị nhanh chóng trong thời gian ngắn.</p>
+                </section>
+            </div>
+
+            <div class="toc-sidebar w-full md:w-1/4 md:sticky md:top-24 h-fit">
+                <div class="toc-container p-6 rounded-lg">
+                    <h3 class="text-lg font-bold mb-4">Mục lục</h3>
+                    <ul>
+                        <li><a href="#intro" class="toc-link">Giới thiệu</a></li>
+                        <li><a href="#price-history" class="toc-link">Lịch sử giá token</a></li>
+                        <li><a href="#collapse-causes" class="toc-link">Nguyên nhân sụp đổ</a></li>
+                        <li class="ml-4"><a href="#liquidations" class="toc-link">Thanh lý cưỡng bức</a></li>
+                        <li class="ml-4"><a href="#suspicious-activities" class="toc-link">Hoạt động đáng ngờ</a></li>
+                        <li class="ml-4"><a href="#market-manipulation" class="toc-link">Thao túng thị trường</a></li>
+                        <li class="ml-4"><a href="#market-psychology" class="toc-link">Bong bóng thị trường</a></li>
+                        <li><a href="#reactions" class="toc-link">Phản ứng các bên</a></li>
+                        <li class="ml-4"><a href="#team-response" class="toc-link">Phản ứng đội ngũ</a></li>
+                        <li class="ml-4"><a href="#exchange-response" class="toc-link">Phản ứng sàn giao dịch</a></li>
+                        <li><a href="#conclusion" class="toc-link">Kết luận</a></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer class="bg-gray-100 dark:bg-gray-800 py-8 mt-10">
+        <div class="container mx-auto px-4">
+            <div class="flex flex-col md:flex-row justify-between">
+                <div class="mb-6 md:mb-0">
+                    <h3 class="text-lg font-bold mb-2">Về tác giả</h3>
+                    <p>Nghiên cứu và phân tích bởi nhóm chuyên gia tài chính tiền điện tử</p>
+                    <p>© 2025 Crypto Analysis Group. Tất cả các quyền được bảo lưu.</p>
+                </div>
+                <div class="mb-6 md:mb-0">
+                    <h3 class="text-lg font-bold mb-2">Liên hệ</h3>
+                    <p>Email: info@cryptoanalysis.example</p>
+                    <p>Twitter: @CryptoAnalyst</p>
+                    <p>Telegram: t.me/CryptoAnalysisGroup</p>
+                </div>
+                <div>
+                    <h3 class="text-lg font-bold mb-2">Tài nguyên</h3>
+                    <p>Dữ liệu được tổng hợp từ CoinMarketCap, CoinGecko, và các nguồn tin tức uy tín trong ngành.</p>
+                    <p>Cập nhật lần cuối: 14/04/2025</p>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <div class="back-to-top" id="backToTop">
+        <i class="fas fa-arrow-up"></i>
+    </div>
+
+    <script>
+        // Price data
+        const priceData = [
+            { month: '2023-01', price: 0.028068 },
+            { month: '2023-02', price: 0.036528 },
+            { month: '2023-03', price: 0.043245 },
+            { month: '2023-04', price: 0.033679 },
+            { month: '2023-05', price: 0.033613 },
+            { month: '2023-06', price: 0.027528 },
+            { month: '2023-07', price: 0.022984 },
+            { month: '2023-08', price: 0.023216 },
+            { month: '2023-09', price: 0.018650 },
+            { month: '2023-10', price: 0.020004 },
+            { month: '2023-11', price: 0.020638 },
+            { month: '2023-12', price: 0.023240 },
+            { month: '2024-01', price: 0.058453 },
+            { month: '2024-02', price: 0.108441 },
+            { month: '2024-03', price: 0.260969 },
+            { month: '2024-04', price: 0.720291 },
+            { month: '2024-05', price: 0.655174 },
+            { month: '2024-06', price: 0.732020 },
+            { month: '2024-07', price: 0.779604 },
+            { month: '2024-08', price: 1.159832 },
+            { month: '2024-09', price: 0.909115 },
+            { month: '2024-10', price: 1.215985 },
+            { month: '2024-11', price: 1.399806 },
+            { month: '2024-12', price: 3.555734 },
+            { month: '2025-01', price: 3.823275 },
+            { month: '2025-02', price: 9.036695 },
+            { month: '2025-03', price: 7.535570 },
+            { month: '2025-04-13', price: 6.300000 },
+            { month: '2025-04-14', price: 0.500000 }
+        ];
+
+        // Chart setup
+        function initChart() {
+            const ctx = document.getElementById('priceChart').getContext('2d');
+            
+            const labels = priceData.map(data => data.month);
+            const prices = priceData.map(data => data.price);
+            
+            const isDarkMode = document.body.classList.contains('dark-mode');
+            const gridColor = getComputedStyle(document.body).getPropertyValue('--chart-grid');
+            const textColor = getComputedStyle(document.body).getPropertyValue('--text-color');
+            
+            const chart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Giá Token OM (USD)',
+                        data: prices,
+                        backgroundColor: 'rgba(49, 130, 206, 0.2)',
+                        borderColor: '#3182ce',
+                        borderWidth: 2,
+                        pointBackgroundColor: '#3182ce',
+                        pointBorderColor: '#fff',
+                        pointRadius: 4,
+                        pointHoverRadius: 6,
+                        tension: 0.3
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return `Giá: $${context.parsed.y.toFixed(2)}`;
+                                },
+                                title: function(context) {
+                                    return context[0].label;
+                                }
+                            }
+                        },
+                        annotation: {
+                            annotations: {
+                                crashLine: {
+                                    type: 'line',
+                                    xMin: 'Tháng 4/2025',
+                                    xMax: 'Tháng 4/2025',
+                                    borderColor: 'red',
+                                    borderWidth: 2,
+                                    label: {
+                                        enabled: true,
+                                        content: 'Sự sụp đổ',
+                                        position: 'top'
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: {
+                                color: gridColor
+                            },
+                            ticks: {
+                                color: textColor,
+                                maxRotation: 45,
+                                minRotation: 45
+                            }
+                        },
+                        y: {
+                            grid: {
+                                color: gridColor
+                            },
+                            ticks: {
+                                color: textColor,
+                                callback: function(value) {
+                                    return '$' + value.toFixed(2);
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+            
+            return chart;
+        }
+
+        // Dark mode toggle
+        let chart;
+        const darkModeToggle = document.getElementById('darkModeToggle');
+        const toggleCircle = darkModeToggle.querySelector('.toggle-circle');
+        
+        function toggleDarkMode() {
+            document.body.classList.toggle('dark-mode');
+            darkModeToggle.classList.toggle('dark');
+            
+            // Update chart colors
+            if (chart) {
+                chart.destroy();
+            }
+            chart = initChart();
+            
+            localStorage.setItem('darkMode', document.body.classList.contains('dark-mode'));
+        }
+        
+        darkModeToggle.addEventListener('click', toggleDarkMode);
+        
+        // Check for saved dark mode preference
+        if (localStorage.getItem('darkMode') === 'true') {
+            document.body.classList.add('dark-mode');
+            darkModeToggle.classList.add('dark');
+        }
+        
+        // Intersection Observer for sections
+        const sections = document.querySelectorAll('.content-section');
+        const tocLinks = document.querySelectorAll('.toc-link');
+        
+        const observerOptions = {
+            root: null,
+            rootMargin: '0px',
+            threshold: 0.2
+        };
+        
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    const id = entry.target.getAttribute('id');
+                    tocLinks.forEach(link => {
+                        link.classList.remove('active');
+                        if (link.getAttribute('href') === `#${id}`) {
+                            link.classList.add('active');
+                        }
+                    });
+                }
+            });
+        }, observerOptions);
+        
+        sections.forEach(section => {
+            observer.observe(section);
+        });
+        
+        // Back to top button
+        const backToTopButton = document.getElementById('backToTop');
+        
+        window.addEventListener('scroll', () => {
+            if (window.pageYOffset > 300) {
+                backToTopButton.classList.add('visible');
+            } else {
+                backToTopButton.classList.remove('visible');
+            }
+            
+            // Add shadow to navbar on scroll
+            const navbar = document.getElementById('navbar');
+            if (window.pageYOffset > 10) {
+                navbar.classList.add('navbar-shadow');
+            } else {
+                navbar.classList.remove('navbar-shadow');
+            }
+        });
+        
+        backToTopButton.addEventListener('click', () => {
+            window.scrollTo({
+                top: 0,
+                behavior: 'smooth'
+            });
+        });
+        
+        // Smooth scroll for TOC links
+        document.querySelectorAll('.toc-link').forEach(link => {
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                const targetId = link.getAttribute('href');
+                const targetElement = document.querySelector(targetId);
+                
+                window.scrollTo({
+                    top: targetElement.offsetTop - 70,
+                    behavior: 'smooth'
+                });
+                
+                // Update active link
+                document.querySelectorAll('.toc-link').forEach(l => l.classList.remove('active'));
+                link.classList.add('active');
+            });
+        });
+        
+        // Initialize chart when DOM is loaded
+        document.addEventListener('DOMContentLoaded', () => {
+            chart = initChart();
+        });
+    </script>
+</body>
+</html>
